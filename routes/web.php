@@ -19,3 +19,6 @@ Route::get('/', function () {
 });
 
 Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
+
+Route::get('/reset-password', [AuthController::class, 'resetPasswordLoad']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
