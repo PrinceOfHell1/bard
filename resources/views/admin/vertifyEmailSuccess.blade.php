@@ -13,11 +13,10 @@
         <div class="row justify-content-center">
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header">Verifikasi Email Berhasil</div>
-                    <div class="card-body">
+                    <div class="card-header text-center">Verifikasi Email Berhasil</div>
+                    <div class="card-body text-center">
                         <p>Selamat, email Anda telah berhasil diverifikasi!</p>
                         <p>Sekarang Anda dapat menggunakan akun Anda untuk masuk.</p>
-                        {{-- <a href="" class="btn btn-primary">Masuk</a> --}}
                     </div>
                 </div>
             </div>

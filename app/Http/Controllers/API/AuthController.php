@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use Exception;
 use App\Models\User;
 use App\Mail\VerifyMail;
 use Illuminate\Support\Str;
@@ -10,9 +11,79 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
+
+    /**
+     * Google.
+     */
+    public function google(Request $request)
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    /**
+     * Google Action.
+     */
+    public function googleAPI(Request $request)
+    {
+        try {
+            //authenticate users through Google using Socialite
+            $google = Socialite::driver('google')->user();
+
+            $findUser = User::where('email', $google->email)->first();
+            if (!$findUser) {
+                $googleRegister = User::create([
+                    'photo' => $google->avatar,
+                    'name' => $google->name,
+                    'email' => $google->email,
+                    'password' => Hash::make($google->password),
+                    'authenticated' => 'verified',
+                    'login' => 'google'
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Google login Successfully',
+                    'data'  => [
+                        'token' => $googleRegister->createToken('myApp')->plainTextToken,
+                        'name' => $googleRegister->name,
+                        'google' => [
+                            'client_id' => env('GOOGLE_CLIENT_ID'),
+                            'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+                        ],
+                    ]
+                ]);
+            } else {
+                $googleLogin = User::where('email', $google->email)->where('login', 'google')->first();
+                if ($googleLogin) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Google login Successfully',
+                        'data'  => [
+                            'token' => $googleLogin->createToken('myApp')->plainTextToken,
+                            'name' => $googleLogin->name,
+                            'google' => [
+                                'client_id' => env('GOOGLE_CLIENT_ID'),
+                                'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+                            ],
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Account already exists',
+                    ]);
+                }
+            }
+        } catch (Exception $e) {
+            //retrieve error message
+            return response()->json($e->getMessage());
+        }
+    }
+
     /**
      * Login.
      */
@@ -22,23 +93,30 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
 
-            // check if account has not been verified
-            if ($user->authenticated != 'verified') {
+            if ($user->login == 'manual') {
+                // check if account has not been verified
+                if ($user->authenticated != 'verified') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The account has not been verified'
+                    ]);
+                }
+
+                // if account has been verified
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Login successful',
+                    'data' => [
+                        'token' => $user->createToken('myApp')->plainTextToken,
+                        'name' => $user->name
+                    ]
+                ]);
+            } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'The account has not been verified'
+                    'message' => 'The account is registered as a Google account'
                 ]);
             }
-
-            // if account has been verified
-            return response()->json([
-                'success' => true,
-                'message' => 'Login successful',
-                'data' => [
-                    'token' => $user->createToken('myApp')->plainTextToken,
-                    'name' => $user->name
-                ]
-            ]);
         } else {
             // Check if the user account exists by email
             $user = User::where('email', $credentials['email'])->first();
@@ -78,7 +156,7 @@ class AuthController extends Controller
             'verified' => Str::random(50),
         ]);
 
-        Mail::to($request->email)->send(new VerifyMail($user));
+        Mail::to($user->email)->send(new VerifyMail($user));
         return response()->json([
             'success' => true,
             'message' => 'Registration successful',
@@ -115,13 +193,15 @@ class AuthController extends Controller
     public function profile()
     {
         $user = Auth::user();
+        $data = [
+            'photo' => ($user->login == 'google') ? $user->photo : url($user->photo),
+            'name' => $user->name,
+            'email' => $user->email,
+        ];
+
         return response()->json([
             'success' => true,
-            'data' => [
-                'photo' => url('storage/'.$user->photo),
-                'name' => $user->name,
-                'email' => $user->email,
-            ]
+            'data' => $data
         ]);
     }
 

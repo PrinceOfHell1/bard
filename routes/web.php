@@ -18,4 +18,15 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+//Oauth google
+Route::middleware(['guest'])->group(function () {
+    Route::prefix('google')->group(function () {
+        Route::get('/', 'AuthController@google');
+        Route::get('/callback', 'AuthController@googleAPI');
+    });
+});
+
+
+
+//verify email
 Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
