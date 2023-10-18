@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
-            
-            $table->string('device');
+
+            // $table->string('device');
             $table->string('verified')->nullable();
             $table->string('login')->default('manual');
             $table->enum('authenticated', ['verified', 'unverified'])->default('unverified');

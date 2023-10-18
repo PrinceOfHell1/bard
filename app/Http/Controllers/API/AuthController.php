@@ -107,7 +107,7 @@ class AuthController extends Controller
                     'success' => true,
                     'message' => 'Login successful',
                     'data' => [
-                        'token' => $user->createToken('myApp')->plainTextToken,
+                        'token' => $user->createToken($user->email)->plainTextToken,
                         'name' => $user->name
                     ]
                 ]);
@@ -178,13 +178,13 @@ class AuthController extends Controller
                 'authenticated' => 'verified'
             ]);
             return view('admin.vertifyEmailSuccess');
+        } else{
+            //display if account not found
+            return response()->json([
+                'success' => false,
+                'message' => 'Account not found'
+            ]);
         }
-
-        //display if account not found
-        return response()->json([
-            'success' => false,
-            'message' => 'Account not found'
-        ]);
     }
 
     /**
