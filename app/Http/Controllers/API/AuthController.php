@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Socialite\Facades\Socialite;
-use Illuminate\Support\Facades\URL;
 use Carbon\Carbon;
 
 class AuthController extends Controller
@@ -192,6 +191,134 @@ class AuthController extends Controller
     }
 
     /**
+     * Send email for forget password.
+     */
+    public function sendEmail(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'email']
+        ]);
+
+        //check if email not found
+        $email = $request->email;
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account not found, please register first'
+            ]);
+        }
+
+        //create reset password
+        $token = mt_rand(1000, 9999);
+        PasswordReset::create([
+            'email' => $email,
+            'token' => $token,
+            'expiry' => Carbon::now()->addMinutes(5)->setTimezone('Asia/Jakarta'),
+        ]);
+
+        //send token to email user
+        Mail::to($email)->send(new ForgotPasswordMail($token));
+        return response()->json([
+            'success' => true,
+            'message' => 'Token successfully sent to ' . $email,
+            // 'token' => $token,
+        ]);
+    }
+
+    /**
+     * Repeat send token.
+     */
+    public function resendToken($email)
+    {
+        try {
+            //create reset password
+            $token = mt_rand(1000, 9999);
+            PasswordReset::create([
+                'email' => $email,
+                'token' => $token,
+                'expiry' => Carbon::now()->addMinutes(5)->setTimezone('Asia/Jakarta'),
+            ]);
+
+            //send token to email user
+            Mail::to($email)->send(new ForgotPasswordMail($token));
+            return response()->json([
+                'success' => true,
+                'message' => 'Token successfully sent to ' . $email,
+            ]);
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    /**
+     * Check the token obtained from the email.
+     */
+    public function checkToken(Request $request)
+    {
+        $request->validate([
+            'token' => ['required', 'numeric']
+        ]);
+
+        $tokenInput = $request->token;
+        $tokenSend = PasswordReset::where('token', $tokenInput)->first();
+
+        if (!$tokenSend) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid token',
+            ], 401);
+        }
+
+        $setTime = Carbon::now()->setTimezone('Asia/Jakarta');
+        if ($setTime->gt($tokenSend->expiry)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token has expired',
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token valid',
+        ], 200);
+    }
+
+    /**
+     * Forget Password Action.
+     */
+    public function forgetPassword(Request $request, $token)
+    {
+        $request->validate([
+            'password' => ['required'],
+            'confirm_password' => ['required', 'same:password'],
+        ]);
+
+        $resetPassword = PasswordReset::where('token', $token)->first();
+        $user = User::where('email', $resetPassword->email)->first();
+
+        if ($user) {
+            // Verify that the new password is not the same as the old one
+            if (Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The new password cannot be the same as the old one.'
+                ]);
+            }
+
+            // If the new password is valid, then update the password
+            $user->update([
+                'password' => Hash::make($request->password),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reset Password Success'
+        ]);
+    }
+
+    /**
      * Profile.
      */
     public function profile()
@@ -260,96 +387,5 @@ class AuthController extends Controller
                 'message' => 'Account Restore Success'
             ]);
         }
-    }
-
-    /**
-     * Send email for forget password.
-     */
-    public function sendEmail(Request $request)
-    {
-        $request->validate([
-            'email' => ['required', 'email']
-        ]);
-
-        $email = $request->email;
-        $user = User::where('email', $email)->first();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Account not found, please register first'
-            ]);
-        }
-
-        $token = mt_rand(1000, 9999);
-        PasswordReset::create([
-            'email' => $email,
-            'token' => $token,
-            'expiry' => Carbon::now()->addMinutes(5)->setTimezone('Asia/Jakarta'),
-        ]);
-
-
-        Mail::to($email)->send(new ForgotPasswordMail($token));
-        return response()->json([
-            'success' => true,
-            'message' => 'Token successfully sent to ' . $email,
-            // 'token' => $token,
-        ]);
-    }
-
-    /**
-     * Check the token obtained from the email.
-     */
-    public function checkToken(Request $request)
-    {
-        $request->validate([
-            'token' => ['required', 'numeric']
-        ]);
-
-        $tokenInput = $request->token;
-        $tokenSend = PasswordReset::where('token', $tokenInput)->first();
-
-        if (!$tokenSend) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid token',
-            ], 401);
-        }
-
-        $setTime = Carbon::now()->setTimezone('Asia/Jakarta');
-        if ($setTime->gt($tokenSend->expiry)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Token has expired',
-            ], 400);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Token valid',
-        ], 200);
-    }
-
-    /**
-     * Forget Password Action.
-     */
-    public function forgetPassword(Request $request, $token)
-    {
-        $request->validate([
-            'password' => ['required'],
-            'confirm_password' => ['required', 'same:password'],
-        ]);
-
-        $resetPassword = PasswordReset::where('token', $token)->first();
-        $user = User::where('email', $resetPassword->email)->first();
-        if ($user) {
-            $user->update([
-                'password' => $request->password,
-            ]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Reset Password Success'
-        ]);
     }
 }

@@ -19,13 +19,17 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::controller(AuthController::class)->group(function () {
+    //login & register
     Route::post('registration', 'register');
     Route::post('login', 'login');
 
+    //forgot password
     Route::post('sendEmail', 'sendEmail');
+    Route::post('resendToken/{email}', 'resendToken');
     Route::post('checkToken', 'checkToken');
     Route::post('forget-password/{token}', 'forgetPassword');
 
+    // restore account
     Route::post('restore', 'restore');
 })->middleware('guest');
 
