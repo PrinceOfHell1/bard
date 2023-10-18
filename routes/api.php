@@ -21,7 +21,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::controller(AuthController::class)->group(function () {
     Route::post('registration', 'register');
     Route::post('login', 'login');
-    Route::post('forget-password', 'forgetPassword');
+
+    Route::post('sendEmail', 'sendEmail');
+    Route::post('checkToken', 'checkToken');
+    Route::post('forget-password/{token}', 'forgetPassword');
+
     Route::post('restore', 'restore');
 })->middleware('guest');
 

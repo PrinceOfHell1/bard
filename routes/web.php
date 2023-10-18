@@ -29,6 +29,3 @@ Route::middleware(['guest'])->group(function () {
 //verify email
 Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
 
-//forgot password
-Route::get('/reset-password', [AuthController::class, 'resetPasswordLoad']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
