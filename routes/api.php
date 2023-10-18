@@ -14,9 +14,6 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-
-Route::post('/forget-password', [AuthController::class, 'forgetPassword']);
-
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -24,6 +21,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::controller(AuthController::class)->group(function () {
     Route::post('registration', 'register');
     Route::post('login', 'login');
+    Route::post('forget-password', 'forgetPassword');
     Route::post('restore', 'restore');
 })->middleware('guest');
 
