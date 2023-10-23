@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -11,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 class VerifyMail extends Mailable
 {
     use Queueable, SerializesModels;
-    public $user;
+    private $user;
 
     /**
      * Create a new message instance.
@@ -27,7 +28,8 @@ class VerifyMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Verify Mail',
+            from: new Address('no-replay@gmail.com', "Verify email"),
+            subject: "Verify email"
         );
     }
 

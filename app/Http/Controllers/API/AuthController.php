@@ -4,17 +4,15 @@ namespace App\Http\Controllers\API;
 
 use Exception;
 use App\Models\User;
-use App\Models\PasswordReset;
-use App\Mail\VerifyMail;
+use App\Jobs\SendEmailJob;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Models\PasswordReset;
+use App\Jobs\ForgotPasswordJob;
 use App\Http\Controllers\Controller;
-use App\Mail\ForgotPasswordMail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Laravel\Socialite\Facades\Socialite;
-use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -159,7 +157,8 @@ class AuthController extends Controller
             'verified' => Str::random(50),
         ]);
 
-        Mail::to($user->email)->send(new VerifyMail($user));
+        $email = $user->email;
+        SendEmailJob::dispatch($email, $user);
         return response()->json([
             'success' => true,
             'message' => 'Registration successful',
@@ -214,11 +213,10 @@ class AuthController extends Controller
         PasswordReset::create([
             'email' => $email,
             'token' => $token,
-            'expiry' => Carbon::now()->addMinutes(5)->setTimezone('Asia/Jakarta'),
         ]);
 
         //send token to email user
-        Mail::to($email)->send(new ForgotPasswordMail($token));
+        ForgotPasswordJob::dispatch($email, $token);
         return response()->json([
             'success' => true,
             'message' => 'Token successfully sent to ' . $email,
@@ -231,24 +229,19 @@ class AuthController extends Controller
      */
     public function resendToken($email)
     {
-        try {
-            //create reset password
-            $token = mt_rand(1000, 9999);
-            PasswordReset::create([
-                'email' => $email,
-                'token' => $token,
-                'expiry' => Carbon::now()->addMinutes(5)->setTimezone('Asia/Jakarta'),
-            ]);
+        //create reset password
+        $token = mt_rand(1000, 9999);
+        PasswordReset::create([
+            'email' => $email,
+            'token' => $token,
+        ]);
 
-            //send token to email user
-            Mail::to($email)->send(new ForgotPasswordMail($token));
-            return response()->json([
-                'success' => true,
-                'message' => 'Token successfully sent to ' . $email,
-            ]);
-        } catch (Exception $e) {
-            return $e->getMessage();
-        }
+        //send token to email user
+        ForgotPasswordJob::dispatch($email, $token);
+        return response()->json([
+            'success' => true,
+            'message' => 'Token successfully sent to ' . $email,
+        ]);
     }
 
     /**
@@ -268,14 +261,6 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Invalid token',
             ], 401);
-        }
-
-        $setTime = Carbon::now()->setTimezone('Asia/Jakarta');
-        if ($setTime->gt($tokenSend->expiry)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Token has expired',
-            ], 400);
         }
 
         return response()->json([

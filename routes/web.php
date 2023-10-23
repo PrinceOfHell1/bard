@@ -21,8 +21,8 @@ Route::get('/', function () {
 //Oauth google
 Route::middleware(['guest'])->group(function () {
     Route::prefix('google')->group(function () {
-        Route::get('/', 'AuthController@google');
-        Route::get('/callback', 'AuthController@googleAPI');
+        Route::get('/', [AuthController::class, 'google']);
+        Route::get('/callback', [AuthController::class, 'googleAPI']);
     });
 });
 
