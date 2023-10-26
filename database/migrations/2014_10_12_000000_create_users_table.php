@@ -18,10 +18,10 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
 
-            // $table->string('device');
-            $table->string('verified')->nullable();
-            $table->string('login')->default('manual');
+            $table->enum('login',['manual','google']);
             $table->enum('authenticated', ['verified', 'unverified'])->default('unverified');
+            $table->string('verified')->nullable();
+            
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->softDeletes();

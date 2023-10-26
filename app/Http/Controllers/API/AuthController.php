@@ -16,7 +16,6 @@ use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
-
     /**
      * Google.
      */
@@ -92,8 +91,9 @@ class AuthController extends Controller
     {
         $credentials = $request->only('email', 'password');
         if (Auth::attempt($credentials)) {
-            $user = Auth::user();
+            $user = $user =  $request->user();;
 
+            // check if user login with manual
             if ($user->login == 'manual') {
                 // check if account has not been verified
                 if ($user->authenticated != 'verified') {
@@ -113,6 +113,7 @@ class AuthController extends Controller
                     ]
                 ]);
             } else {
+                //if login with google
                 return response()->json([
                     'success' => false,
                     'message' => 'The account is registered as a Google account'
@@ -121,7 +122,6 @@ class AuthController extends Controller
         } else {
             // Check if the user account exists by email
             $user = User::where('email', $credentials['email'])->first();
-
             if ($user) {
                 // The email exists, but the password is incorrect
                 return response()->json([
@@ -170,7 +170,7 @@ class AuthController extends Controller
      */
     public function verifyEmail($verified)
     {
-        //check if verified same or not
+        //check if verified token same or not
         $user = User::where('verified', $verified)->first();
 
         //if account verified update for authenticated
@@ -306,9 +306,9 @@ class AuthController extends Controller
     /**
      * Profile.
      */
-    public function profile()
+    public function profile(Request $request)
     {
-        $user = Auth::user();
+        $user =  $request->user();
         $data = [
             'photo' => ($user->login == 'google') ? $user->photo : url($user->photo),
             'name' => $user->name,
@@ -324,9 +324,9 @@ class AuthController extends Controller
     /**
      * Logout.
      */
-    public function logout()
+    public function logout(Request $request)
     {
-        $user = Auth::user();
+        $user =  $request->user();
         $user->currentAccessToken()->delete();
         return response()->json([
             'success' => true,
@@ -337,9 +337,9 @@ class AuthController extends Controller
     /**
      * Delete Account.
      */
-    public function delete()
+    public function delete(Request $request)
     {
-        $user = Auth::user();
+        $user =  $request->user();
         $user->delete();
         return response()->json([
             'success' => true,

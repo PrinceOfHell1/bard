@@ -14,25 +14,29 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::controller(AuthController::class)->group(function () {
-    //login & register
-    Route::post('registration', 'register');
-    Route::post('login', 'login');
+Route::middleware(['api', 'guest'])->group(function () {
+    Route::controller(AuthController::class)->group(function () {
+        //login & register
+        Route::post('registration', 'register');
+        Route::post('login', 'login');
 
-    //forgot password
-    Route::post('sendEmail', 'sendEmail');
-    Route::post('resendToken/{email}', 'resendToken');
-    Route::post('checkToken', 'checkToken');
-    Route::post('forget-password/{token}', 'forgetPassword');
+        //forgot password
+        Route::post('sendEmail', 'sendEmail');
+        Route::post('resendToken/{email}', 'resendToken');
+        Route::post('checkToken', 'checkToken');
+        Route::post('forget-password/{token}', 'forgetPassword');
 
-    // restore account
-    Route::post('restore', 'restore');
-})->middleware('guest');
+        // restore account
+        Route::post('restore', 'restore');
+    });
+});
 
+//Account
 Route::middleware(['api', 'auth:sanctum'])->group(function () {
     Route::controller(AuthController::class)->group(function () {
         Route::get('profile', 'profile');

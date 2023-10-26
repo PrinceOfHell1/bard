@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\API\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,14 +19,18 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-//Oauth google
 Route::middleware(['guest'])->group(function () {
+    //Oauth google
     Route::prefix('google')->group(function () {
         Route::get('/', [AuthController::class, 'google']);
         Route::get('/callback', [AuthController::class, 'googleAPI']);
     });
+
+    //verify email
+    Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
+
+    //dashboard admin
+    Route::prefix('/dashboard')->group(function (){
+        Route::get('/',[DashboardController::class, 'index']);
+    });
 });
-
-//verify email
-Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
-
