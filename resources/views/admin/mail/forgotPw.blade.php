@@ -15,7 +15,7 @@
                 <p>Anda menerima email ini karena Anda meminta reset password akun Anda. Silakan gunakan token berikut
                     untuk mereset password Anda:</p>
                 <div class="alert alert-info">
-                    <strong>Token:</strong> <span>{{ $token }}</span>
+                    <strong>OTP:</strong> <span>{{ $otp }}</span>
                 </div>
                 <p>Jika Anda tidak merasa perlu mereset password, Anda dapat mengabaikan email ini.</p>
                 <p>Terima kasih!</p>

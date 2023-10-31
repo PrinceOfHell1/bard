@@ -25,11 +25,15 @@ Route::middleware(['api', 'guest'])->group(function () {
         Route::post('registration', 'register');
         Route::post('login', 'login');
 
+        //google
+        Route::get('google', 'google');
+        Route::get('google/callback', 'googleAPI');
+
         //forgot password
         Route::post('sendEmail', 'sendEmail');
-        Route::post('resendToken/{email}', 'resendToken');
-        Route::post('checkToken', 'checkToken');
-        Route::post('forget-password/{token}', 'forgetPassword');
+        Route::post('resendOTP/{email}', 'resendOTP');
+        Route::post('checkOTP', 'checkOTP');
+        Route::post('forget-password/{otp}', 'forgetPassword');
 
         // restore account
         Route::post('restore', 'restore');
@@ -37,7 +41,7 @@ Route::middleware(['api', 'guest'])->group(function () {
 });
 
 //Account
-Route::middleware(['api', 'auth:sanctum'])->group(function () {
+Route::middleware(['api', 'jwt.auth'])->group(function () {
     Route::controller(AuthController::class)->group(function () {
         Route::get('profile', 'profile');
         Route::get('logout', 'logout');

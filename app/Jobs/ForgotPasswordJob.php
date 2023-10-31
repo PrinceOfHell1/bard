@@ -15,15 +15,15 @@ class ForgotPasswordJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $email;
-    public $token;
+    public $otp;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($email, $token)
+    public function __construct($email, $otp)
     {
         $this->email = $email;
-        $this->token = $token;
+        $this->otp = $otp;
     }
 
     /**
@@ -31,6 +31,6 @@ class ForgotPasswordJob implements ShouldQueue
      */
     public function handle(): void
     {
-        Mail::to($this->email)->send(new ForgotPasswordMail($this->token));
+        Mail::to($this->email)->send(new ForgotPasswordMail($this->otp));
     }
 }

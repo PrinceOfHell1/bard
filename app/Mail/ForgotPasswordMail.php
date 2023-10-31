@@ -12,14 +12,14 @@ use Illuminate\Mail\Mailables\Address;
 class ForgotPasswordMail extends Mailable
 {
     use Queueable, SerializesModels;
-    public $token;
+    public $otp;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($token)
+    public function __construct($otp)
     {
-        $this->token = $token;
+        $this->otp = $otp;
     }
 
     /**
@@ -40,7 +40,7 @@ class ForgotPasswordMail extends Mailable
     {
         return new Content(
             view: 'admin.mail.forgotPw',
-            with: ['token' => $this->token],
+            with: ['otp' => $this->otp],
         );
     }
 

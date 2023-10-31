@@ -9,10 +9,11 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\PasswordReset;
 use App\Jobs\ForgotPasswordJob;
+use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Socialite\Facades\Socialite;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
@@ -21,7 +22,10 @@ class AuthController extends Controller
      */
     public function google(Request $request)
     {
-        return Socialite::driver('google')->redirect();
+        return response()->json([
+            'success' => true,
+            'url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl(),
+        ]);
     }
 
     /**
@@ -30,57 +34,43 @@ class AuthController extends Controller
     public function googleAPI(Request $request)
     {
         try {
-            //authenticate users through Google using Socialite
-            $google = Socialite::driver('google')->user();
-
+            // Authenticate users through Google using Socialite
+            $google = Socialite::driver('google')->stateless()->user();
             $findUser = User::where('email', $google->email)->first();
+
             if (!$findUser) {
-                $googleRegister = User::create([
+                // If the user doesn't exist, create a new user
+                $user = User::create([
                     'photo' => $google->avatar,
                     'name' => $google->name,
                     'email' => $google->email,
-                    'password' => Hash::make($google->password),
+                    'password' => Hash::make('random_password'), // You can generate a random password
                     'authenticated' => 'verified',
                     'login' => 'google'
                 ]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Google login Successfully',
-                    'data'  => [
-                        'token' => $googleRegister->createToken('myApp')->plainTextToken,
-                        'name' => $googleRegister->name,
-                        'google' => [
-                            'client_id' => env('GOOGLE_CLIENT_ID'),
-                            'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-                        ],
-                    ]
-                ]);
+                $user->markEmailAsVerified();
             } else {
-                $googleLogin = User::where('email', $google->email)->where('login', 'google')->first();
-                if ($googleLogin) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Google login Successfully',
-                        'data'  => [
-                            'token' => $googleLogin->createToken('myApp')->plainTextToken,
-                            'name' => $googleLogin->name,
-                            'google' => [
-                                'client_id' => env('GOOGLE_CLIENT_ID'),
-                                'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-                            ],
-                        ]
-                    ]);
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Account already exists',
-                    ]);
-                }
+                // If the user exists, use the existing user
+                $user = $findUser;
             }
+
+            // Generate a JWT token for the user
+            $token = JWTAuth::fromUser($user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Google login successfully',
+                'data'  => [
+                    'name' => $user->name,
+                    'token' => $token,
+                ]
+            ]);
+        } catch (JWTException $e) {
+            // Handle JWT errors
+            return response()->json(['success' => false, 'message' => 'Failed to create JWT token'], 500);
         } catch (Exception $e) {
-            //retrieve error message
-            return response()->json($e->getMessage());
+            // Handle other errors
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -90,51 +80,59 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
-        if (Auth::attempt($credentials)) {
-            $user = $user =  $request->user();;
 
-            // check if user login with manual
-            if ($user->login == 'manual') {
-                // check if account has not been verified
-                if ($user->authenticated != 'verified') {
+        try {
+            if ($token = JWTAuth::attempt($credentials)) {
+                $user =  $request->user();;
+
+                // check if user login with manual
+                if ($user->login == 'manual') {
+                    // check if account has not been verified
+                    if ($user->authenticated != 'verified') {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'The account has not been verified'
+                        ]);
+                    }
+
+                    // if account has been verified
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Login successful',
+                        'data' => [
+                            'name' => $user->name,
+                            'token' => $token,
+                        ]
+                    ]);
+                } else {
+                    //if login with google
                     return response()->json([
                         'success' => false,
-                        'message' => 'The account has not been verified'
+                        'message' => 'The account is registered as a Google account'
                     ]);
                 }
-
-                // if account has been verified
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Login successful',
-                    'data' => [
-                        'token' => $user->createToken($user->email)->plainTextToken,
-                        'name' => $user->name
-                    ]
-                ]);
             } else {
-                //if login with google
-                return response()->json([
-                    'success' => false,
-                    'message' => 'The account is registered as a Google account'
-                ]);
+                // Check if the user account exists by email
+                $user = User::where('email', $credentials['email'])->first();
+                if ($user) {
+                    // The email exists, but the password is incorrect
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The password you entered is incorrect',
+                    ]);
+                } else {
+                    // The user account doesn't exist
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Account not found, please register first',
+                    ]);
+                }
             }
-        } else {
-            // Check if the user account exists by email
-            $user = User::where('email', $credentials['email'])->first();
-            if ($user) {
-                // The email exists, but the password is incorrect
-                return response()->json([
-                    'success' => false,
-                    'message' => 'The password you entered is incorrect',
-                ]);
-            } else {
-                // The user account doesn't exist
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Account not found, please register first',
-                ]);
-            }
+        } catch (JWTException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not create token',
+            ]);
         }
     }
 
@@ -209,14 +207,14 @@ class AuthController extends Controller
         }
 
         //create reset password
-        $token = mt_rand(1000, 9999);
+        $otp = mt_rand(1000, 9999);
         PasswordReset::create([
             'email' => $email,
-            'token' => $token,
+            'otp' => $otp,
         ]);
 
         //send token to email user
-        ForgotPasswordJob::dispatch($email, $token);
+        ForgotPasswordJob::dispatch($email, $otp);
         return response()->json([
             'success' => true,
             'message' => 'Token successfully sent to ' . $email,
@@ -227,17 +225,17 @@ class AuthController extends Controller
     /**
      * Repeat send token.
      */
-    public function resendToken($email)
+    public function resendOTP($email)
     {
         //create reset password
-        $token = mt_rand(1000, 9999);
+        $otp = mt_rand(1000, 9999);
         PasswordReset::create([
             'email' => $email,
-            'token' => $token,
+            'token' => $otp,
         ]);
 
         //send token to email user
-        ForgotPasswordJob::dispatch($email, $token);
+        ForgotPasswordJob::dispatch($email, $otp);
         return response()->json([
             'success' => true,
             'message' => 'Token successfully sent to ' . $email,
@@ -247,39 +245,39 @@ class AuthController extends Controller
     /**
      * Check the token obtained from the email.
      */
-    public function checkToken(Request $request)
+    public function checkOTP(Request $request)
     {
         $request->validate([
-            'token' => ['required', 'numeric']
+            'otp' => ['required', 'numeric']
         ]);
 
-        $tokenInput = $request->token;
-        $tokenSend = PasswordReset::where('token', $tokenInput)->first();
+        $otpInput = $request->otp;
+        $otpSend = PasswordReset::where('otp', $otpInput)->first();
 
-        if (!$tokenSend) {
+        if (!$otpSend) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid token',
+                'message' => 'Invalid OTP',
             ], 401);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Token valid',
+            'message' => 'OTP valid',
         ], 200);
     }
 
     /**
      * Forget Password Action.
      */
-    public function forgetPassword(Request $request, $token)
+    public function forgetPassword(Request $request, $otp)
     {
         $request->validate([
             'password' => ['required'],
             'confirm_password' => ['required', 'same:password'],
         ]);
 
-        $resetPassword = PasswordReset::where('token', $token)->first();
+        $resetPassword = PasswordReset::where('otp', $otp)->first();
         $user = User::where('email', $resetPassword->email)->first();
 
         if ($user) {

@@ -20,12 +20,6 @@ Route::get('/', function () {
 });
 
 Route::middleware(['guest'])->group(function () {
-    //Oauth google
-    Route::prefix('google')->group(function () {
-        Route::get('/', [AuthController::class, 'google']);
-        Route::get('/callback', [AuthController::class, 'googleAPI']);
-    });
-
     //verify email
     Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
 
