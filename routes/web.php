@@ -20,11 +20,16 @@ Route::get('/', function () {
 });
 
 Route::middleware(['guest'])->group(function () {
-    //verify email
-    Route::get('verify/{verified}', [AuthController::class, 'verifyEmail']);
+    Route::controller(AuthController::class)->group(function () {
+        //google
+        Route::get('google', 'google');
+
+        //verify email
+        Route::get('verify/{verified}', 'verifyEmail');
+    });
 
     //dashboard admin
-    Route::prefix('/dashboard')->group(function (){
-        Route::get('/',[DashboardController::class, 'index']);
+    Route::prefix('/dashboard')->group(function () {
+        Route::get('/', [DashboardController::class, 'index']);
     });
 });

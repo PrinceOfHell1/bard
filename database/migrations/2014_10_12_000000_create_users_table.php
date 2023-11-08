@@ -13,15 +13,15 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->text('photo')->default('storage/photo/default_p.jpg');
+            $table->string('photo')->default('storage/photo/default_p.jpg');
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
 
-            $table->enum('login',['manual','google']);
+            $table->enum('provider',['manual','google'])->default('manual');
             $table->enum('authenticated', ['verified', 'unverified'])->default('unverified');
             $table->string('verified')->nullable();
-            
+
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->softDeletes();

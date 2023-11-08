@@ -22,10 +22,13 @@ class AuthController extends Controller
      */
     public function google(Request $request)
     {
-        return response()->json([
-            'success' => true,
-            'url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl(),
-        ]);
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl(),
+            ]);
+        }
+        return Socialite::driver('google')->redirect();
     }
 
     /**
@@ -36,6 +39,7 @@ class AuthController extends Controller
         try {
             // Authenticate users through Google using Socialite
             $google = Socialite::driver('google')->stateless()->user();
+            dd($google);
             $findUser = User::where('email', $google->email)->first();
 
             if (!$findUser) {
@@ -44,7 +48,7 @@ class AuthController extends Controller
                     'photo' => $google->avatar,
                     'name' => $google->name,
                     'email' => $google->email,
-                    'password' => Hash::make('random_password'), // You can generate a random password
+                    'password' => Hash::make('12345678'), // You can generate a random password
                     'authenticated' => 'verified',
                     'login' => 'google'
                 ]);
@@ -75,6 +79,85 @@ class AuthController extends Controller
     }
 
     /**
+     * Access token from google.
+     */
+    public static function accessToken($access_token)
+    {
+        $ret = self::requestData(
+            'https://people.googleapis.com/v1/people/me?personFields=phoneNumbers,emailAddresses,names,photos',
+            'GET',
+            null,
+            'Bearer ' . $access_token
+        );
+
+        return $ret;
+    }
+
+    /**
+     * Request Data from access token.
+     */
+    public static function requestData($url, $method, $data = null, $Authorization = null)
+    {
+        $options = array(
+            'http' => array(
+                'method' => $method,
+                'header' => "Content-Type: application/json\r\n" .
+                    "Authorization: " . $Authorization,
+            )
+        );
+
+        if ($data) {
+            $options['http']['content'] = json_encode($data);
+        }
+
+        $context = stream_context_create($options);
+        $response = @file_get_contents($url, false, $context);
+
+        if ($response === false) {
+            return [
+                'success' => false,
+                'message' => 'Failed to retrieve data.',
+            ];
+        } else {
+            $data = json_decode($response);
+
+            $email = $data->emailAddresses[0]->value;
+
+            // Check whether the email already exists in the database
+            $user = User::where('email', $email)->first();
+
+            if (!$user) {
+                // If the email is not registered, create a new user
+                $user = User::create([
+                    'photo' => $data->photos[0]->url,
+                    'name' => $data->names[0]->displayName,
+                    'email' => $email,
+                    'password' => Hash::make('12345678'), // You should use a more secure method to generate passwords
+                    'authenticated' => 'verified',
+                    'provider' => 'google',
+                    'email_verified_at' => now()
+                ]);
+            }
+
+            $credentials = [
+                'email' => $email,
+                'password' => '12345678' // Make sure you use the password entered by the user
+            ];
+
+            $token = JWTAuth::attempt($credentials);
+
+            return [
+                'success' => true,
+                'message' => 'Login Google Successfully',
+                'data' => [
+                    'name' => $user->name,
+                    'token' => $token
+                ],
+            ];
+        }
+    }
+
+    /**
      * Login.
      */
     public function login(Request $request)
@@ -83,7 +166,7 @@ class AuthController extends Controller
 
         try {
             if ($token = JWTAuth::attempt($credentials)) {
-                $user =  $request->user();;
+                $user =  $request->user();
 
                 // check if user login with manual
                 if ($user->login == 'manual') {
@@ -108,7 +191,7 @@ class AuthController extends Controller
                     //if login with google
                     return response()->json([
                         'success' => false,
-                        'message' => 'The account is registered as a Google account'
+                        'message' => 'The email address is already in use on Google',
                     ]);
                 }
             } else {
@@ -147,19 +230,18 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        //create a new account
+        $email = $request->email;
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'email' => $email,
             'password' => Hash::make($request->password),
             'verified' => Str::random(50),
         ]);
-
-        $email = $user->email;
         SendEmailJob::dispatch($email, $user);
+
         return response()->json([
             'success' => true,
-            'message' => 'Registration successful',
+            'message' => 'Registration successful and email sent successfully',
         ]);
     }
 
@@ -324,8 +406,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $user =  $request->user();
-        $user->currentAccessToken()->delete();
+        JWTAuth::invalidate(JWTAuth::getToken());
         return response()->json([
             'success' => true,
             'message' => 'Logout Successfully',

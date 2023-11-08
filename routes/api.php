@@ -26,8 +26,10 @@ Route::middleware(['api', 'guest'])->group(function () {
         Route::post('login', 'login');
 
         //google
+        Route::get('oauthGoogle/{access_token}','accessToken');
         Route::get('google', 'google');
         Route::get('google/callback', 'googleAPI');
+        // Route::get('google1/','googleOauth');
 
         //forgot password
         Route::post('sendEmail', 'sendEmail');
